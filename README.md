@@ -2,6 +2,7 @@ kubebuilder init --domain aliok.github.com --repo github.com/aliok/kubegoodies
 go get sigs.k8s.io/controller-runtime@v0.11.2
 go mod tidy
 kubebuilder create api --group kubegoodies --version v1 --kind ConfigMapPropagation
+go mod tidy
 
 # kubegoodies-operator
 // TODO(user): Add simple overview of use/purpose

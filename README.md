@@ -4,6 +4,7 @@ go mod tidy
 kubebuilder create api --group kubegoodies --version v1 --kind ConfigMapPropagation
 go mod tidy
 make generate
+make manifests
 
 # kubegoodies-operator
 // TODO(user): Add simple overview of use/purpose

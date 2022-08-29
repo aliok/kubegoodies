@@ -1,7 +1,6 @@
 kubebuilder init --domain aliok.github.com --repo github.com/aliok/kubegoodies
 go get sigs.k8s.io/controller-runtime@v0.11.2
 go mod tidy
-go mod vendor
 
 
 # kubegoodies-operator

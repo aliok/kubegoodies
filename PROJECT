@@ -1,0 +1,6 @@
+domain: aliok.github.com
+layout:
+- go.kubebuilder.io/v3
+projectName: kubegoodies-operator
+repo: github.com/aliok/kubegoodies
+version: "3"

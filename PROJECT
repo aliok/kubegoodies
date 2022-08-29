@@ -3,4 +3,14 @@ layout:
 - go.kubebuilder.io/v3
 projectName: kubegoodies-operator
 repo: github.com/aliok/kubegoodies
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: aliok.github.com
+  group: kubegoodies
+  kind: ConfigMapPropagation
+  path: github.com/aliok/kubegoodies/api/v1
+  version: v1
 version: "3"

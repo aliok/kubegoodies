@@ -42,9 +42,13 @@ type PropagationSource struct {
 	// +kubebuilder:validation:MinLength=1
 	Namespace string `json:"namespace"`
 
+	// Names is the list of configmaps to propagate.
+	// Either specify Names or ObjectSelector.
 	// +kubebuilder:validation:Optional
 	Names []string `json:"names,omitempty"`
 
+	// ObjectSelector is a selector to filter configmaps to propagate.
+	// Either specify Names or ObjectSelector.
 	// +kubebuilder:validation:Optional
 	ObjectSelector *metav1.LabelSelector `json:"objectSelector,omitempty"`
 }

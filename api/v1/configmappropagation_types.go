@@ -28,14 +28,40 @@ type ConfigMapPropagationSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of ConfigMapPropagation. Edit configmappropagation_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// +kubebuilder:validation:Required
+	Source PropagationSource `json:"source"`
+
+	// +kubebuilder:validation:Required
+	Target PropagationTarget `json:"target"`
+}
+
+// +kubebuilder:validation:MinProperties=2
+type PropagationSource struct {
+	// Namespaces is a list of namespaces to watch for configmaps.
+	// Type * to watch all namespaces.
+	// +kubebuilder:validation:MinLength=1
+	Namespace string `json:"namespace"`
+
+	// +kubebuilder:validation:Optional
+	Names []string `json:"names,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	ObjectSelector *metav1.LabelSelector `json:"objectSelector,omitempty"`
+}
+
+type PropagationTarget struct {
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinItems=1
+	Namespaces []string `json:"namespaces"`
 }
 
 // ConfigMapPropagationStatus defines the observed state of ConfigMapPropagation
 type ConfigMapPropagationStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	// Conditions represent the latest available observations of an object's state
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 //+kubebuilder:object:root=true

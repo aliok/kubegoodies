@@ -3,4 +3,11 @@ kind: ConfigMapPropagation
 metadata:
   name: configmappropagation-sample
 spec:
-  # TODO(user): Add fields here
+  source:
+    namespace: default
+    names:
+    - src-by-name-1
+  target:
+    namespaces:
+    - ns1
+    - ns2

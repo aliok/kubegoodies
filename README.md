@@ -6,6 +6,102 @@ go mod tidy
 make generate
 make manifests
 
+TODO:
+- Configmap propagation CRD should be cluster-scoped
+
+Test:
+```shell
+
+kubectl create namespace ns1
+kubectl create namespace ns2
+
+cat <<-EOF | kubectl apply -f -
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: src-by-name-1
+  namespace: default
+data:
+  foo: src-by-name-1
+EOF
+
+cat <<-EOF | kubectl apply -f -
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: src-by-name-2
+  namespace: default
+data:
+  foo: src-by-name-2
+EOF
+
+cat <<-EOF | kubectl apply -f -
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: src-by-label-1
+  namespace: default
+  labels:
+    hello: world
+data:
+  foo: src-by-label-1
+EOF
+
+cat <<-EOF | kubectl apply -f -
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: src-by-label-2
+  namespace: default
+  labels:
+    hello: world
+data:
+  foo: src-by-label-2
+EOF
+
+cat <<-EOF | kubectl apply -f -
+---
+apiVersion: kubegoodies.aliok.github.com/v1
+kind: ConfigMapPropagation
+metadata:
+  name: by-name
+spec:
+  source:
+    namespace: default
+    names:
+    - src-by-name-1
+    - src-by-name-2
+  target:
+    namespaces:
+    - ns1
+    - ns2
+EOF
+
+cat <<-EOF | kubectl apply -f -
+---
+apiVersion: kubegoodies.aliok.github.com/v1
+kind: ConfigMapPropagation
+metadata:
+  name: by-label
+spec:
+  source:
+    namespace: default
+    objectSelector:
+      matchLabels:
+        hello: world
+  target:
+    namespaces:
+    - ns1
+    - ns2
+EOF
+
+```
+
+
 # kubegoodies-operator
 // TODO(user): Add simple overview of use/purpose
 

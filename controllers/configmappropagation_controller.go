@@ -18,11 +18,14 @@ package controllers
 
 import (
 	"context"
+	"github.com/aliok/kubegoodies/pkg/configmappropagation"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	corev1 "k8s.io/api/core/v1"
 
 	kubegoodiesv1 "github.com/aliok/kubegoodies/api/v1"
 )
@@ -47,9 +50,61 @@ type ConfigMapPropagationReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.2/pkg/reconcile
 func (r *ConfigMapPropagationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	var pr kubegoodiesv1.ConfigMapPropagation
+	if err := r.Get(ctx, req.NamespacedName, &pr); err != nil {
+		// we'll ignore not-found errors, since they can't be fixed by an immediate
+		// requeue (we'll need to wait for a new notification), and we can get them
+		// on deleted requests.
+		logger.Error(err, "unable to fetch ConfigMapPropagation")
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	var executionReqs []configmappropagation.Request
+	if len(pr.Spec.Source.Names) > 0 {
+		for _, srcConfigmapName := range pr.Spec.Source.Names {
+			for _, targetNs := range pr.Spec.Target.Namespaces {
+				executionReqs = append(executionReqs, configmappropagation.Request{
+					SourceNamespace: pr.Spec.Source.Namespace,
+					SourceName:      srcConfigmapName,
+					TargetNamespace: targetNs,
+					TargetName:      srcConfigmapName,
+				})
+			}
+		}
+	}
+
+	if pr.Spec.Source.ObjectSelector != nil {
+		var srcConfigmapList corev1.ConfigMapList
+		if err := r.List(ctx, &srcConfigmapList, client.InNamespace(pr.Spec.Source.Namespace), client.MatchingLabels(pr.Spec.Source.ObjectSelector.MatchLabels)); err != nil {
+			logger.Error(err, "unable to list ConfigMaps")
+			return ctrl.Result{}, err
+		}
+
+		for _, srcConfigmap := range srcConfigmapList.Items {
+			for _, targetNs := range pr.Spec.Target.Namespaces {
+				executionReqs = append(executionReqs, configmappropagation.Request{
+					SourceNamespace: pr.Spec.Source.Namespace,
+					SourceName:      srcConfigmap.Name,
+					TargetNamespace: targetNs,
+					TargetName:      srcConfigmap.Name,
+				})
+			}
+		}
+	}
+
+	// TODO: do we need a sanity check for the case where there is a target configmap which is targeted by multiple source configmaps?
+
+	logger.Info("executionReqs", "executionReqs", executionReqs)
+
+	for _, executionReq := range executionReqs {
+		if err := configmappropagation.Execute(ctx, r.Client, &executionReq); err != nil {
+			// TODO: do not return here, but continue with the rest of the requests
+			logger.Error(err, "unable to execute configmap propagation")
+			return ctrl.Result{}, err
+		}
+	}
 
 	return ctrl.Result{}, nil
 }

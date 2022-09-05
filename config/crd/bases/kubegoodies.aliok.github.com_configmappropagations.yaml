@@ -40,6 +40,8 @@ spec:
                 minProperties: 2
                 properties:
                   names:
+                    description: Names is the list of configmaps to propagate. Either
+                      specify Names or ObjectSelector.
                     items:
                       type: string
                     type: array
@@ -49,10 +51,8 @@ spec:
                     minLength: 1
                     type: string
                   objectSelector:
-                    description: A label selector is a label query over a set of resources.
-                      The result of matchLabels and matchExpressions are ANDed. An
-                      empty label selector matches all objects. A null label selector
-                      matches no objects.
+                    description: ObjectSelector is a selector to filter configmaps
+                      to propagate. Either specify Names or ObjectSelector.
                     properties:
                       matchExpressions:
                         description: matchExpressions is a list of label selector

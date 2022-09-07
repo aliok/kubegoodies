@@ -186,6 +186,49 @@ spec:
                   - type
                   type: object
                 type: array
+              propagationStatus:
+                description: PropagationStatus is the list of status of each propagation.
+                items:
+                  properties:
+                    message:
+                      description: Message is a human readable message indicating
+                        details about the transition. This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    reason:
+                      description: Reason contains a programmatic identifier indicating
+                        the reason for the condition's last transition.
+                      maxLength: 1024
+                      minLength: 1
+                      type: string
+                    sourceName:
+                      description: SourceName is the name of the source configmap.
+                      type: string
+                    sourceNamespace:
+                      description: SourceNamespace is the namespace of the source
+                        configmap.
+                      type: string
+                    status:
+                      description: Status is the status of the propagation. One of
+                        True, False, Unknown.
+                      type: string
+                    targetName:
+                      description: TargetName is the name of the target configmap.
+                      type: string
+                    targetNamespace:
+                      description: TargetNamespace is the namespace of the target
+                        configmap.
+                      type: string
+                  required:
+                  - message
+                  - reason
+                  - sourceName
+                  - sourceNamespace
+                  - status
+                  - targetName
+                  - targetNamespace
+                  type: object
+                type: array
             type: object
         type: object
     served: true

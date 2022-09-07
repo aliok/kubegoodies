@@ -65,8 +65,57 @@ type ConfigMapPropagationStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Conditions represent the latest available observations of an object's state
+	// +kubebuilder:validation:Optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// PropagationStatus is the list of status of each propagation.
+	// +kubebuilder:validation:Optional
+	PropagationStatus []PropagationStatus `json:"propagationStatus,omitempty"`
 }
+
+type PropagationStatus struct {
+
+	// SourceNamespace is the namespace of the source configmap.
+	// +kubebuilder:validation:Required
+	SourceNamespace string `json:"sourceNamespace"`
+
+	// SourceName is the name of the source configmap.
+	// +kubebuilder:validation:Required
+	SourceName string `json:"sourceName"`
+
+	// TargetNamespace is the namespace of the target configmap.
+	// +kubebuilder:validation:Required
+	TargetNamespace string `json:"targetNamespace"`
+
+	// TargetName is the name of the target configmap.
+	// +kubebuilder:validation:Required
+	TargetName string `json:"targetName"`
+
+	// Status is the status of the propagation. One of True, False, Unknown.
+	// +kubebuilder:validation:Required
+	Status metav1.ConditionStatus `json:"status"`
+
+	// Reason contains a programmatic identifier indicating the reason for the condition's last transition.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MaxLength=1024
+	// +kubebuilder:validation:MinLength=1
+	Reason string `json:"reason"`
+
+	// Message is a human readable message indicating details about the transition.
+	// This may be an empty string.
+	// +required
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MaxLength=32768
+	Message string `json:"message"`
+}
+
+const (
+	// ConfigMapPropagationConditionTypeReady is set when the ConfigMapPropagation is ready.
+	ConfigMapPropagationConditionTypeReady = "Ready"
+
+	// ConfigMapPropagationConditionTypeCollectedExecutionRequests is set when the ConfigMapPropagation has collected all execution requests.
+	ConfigMapPropagationConditionTypeCollectedExecutionRequests = "CollectedExecutionRequests"
+)
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status

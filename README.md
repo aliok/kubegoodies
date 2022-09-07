@@ -8,6 +8,7 @@ make manifests
 
 TODO:
 - Configmap propagation CRD should be cluster-scoped
+- Target configmaps should be deleted when the propagation CR is deleted
 
 Test:
 ```shell

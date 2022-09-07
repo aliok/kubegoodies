@@ -17,66 +17,111 @@ limitations under the License.
 package controllers
 
 import (
-	"path/filepath"
+	"context"
+	"fmt"
+	kubegoodiesv1 "github.com/aliok/kubegoodies/api/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/e2e-framework/klient/conf"
+	"sigs.k8s.io/e2e-framework/klient/k8s"
+	"sigs.k8s.io/e2e-framework/klient/wait/conditions"
 	"testing"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	kubegoodiesv1 "github.com/aliok/kubegoodies/api/v1"
-	//+kubebuilder:scaffold:imports
+	"sigs.k8s.io/e2e-framework/klient/wait"
+	"sigs.k8s.io/e2e-framework/pkg/env"
+	"sigs.k8s.io/e2e-framework/pkg/envconf"
+	"sigs.k8s.io/e2e-framework/pkg/features"
 )
 
-// These tests use Ginkgo (BDD-style Go testing framework). Refer to
-// http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
-
-var cfg *rest.Config
-var k8sClient client.Client
-var testEnv *envtest.Environment
-
-func TestAPIs(t *testing.T) {
-	RegisterFailHandler(Fail)
-
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"Controller Suite",
-		[]Reporter{printer.NewlineReporter{}})
+func Hello(name string) string {
+	return fmt.Sprintf("Hello %s", name)
 }
 
-var _ = BeforeSuite(func() {
-	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
+// TestHello shows an example of a test environment
+// that uses a simple setup to assess a feature (test)
+// in a test function directly (outside of test suite TestMain)
+func TestHello(t *testing.T) {
+	e := env.NewWithConfig(envconf.New())
+	feat := features.New("Hello Feature").
+		WithLabel("type", "simple").
+		Assess("test message", func(ctx context.Context, t *testing.T, _ *envconf.Config) context.Context {
+			result := Hello("foo")
+			if result != "Hello foo" {
+				t.Error("unexpected message")
+			}
+			return ctx
+		})
 
-	By("bootstrapping test environment")
-	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
-		ErrorIfCRDPathMissing: true,
-	}
+	e.Test(t, feat.Feature())
+}
 
-	var err error
-	// cfg is defined in this file globally.
-	cfg, err = testEnv.Start()
-	Expect(err).NotTo(HaveOccurred())
-	Expect(cfg).NotTo(BeNil())
+// The following shows an example of a simple
+// test function that uses feature with a setup
+// step.
+func TestHello_WithSetup(t *testing.T) {
+	kubeconfigpath := conf.ResolveKubeConfigFile()
+	cfg := envconf.NewWithKubeConfig(kubeconfigpath)
+	e := env.NewWithConfig(cfg)
+	feat := features.New("Hello Feature").
+		// TODO: need the label?
+		WithLabel("type", "simple").
+		Setup(func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+			err := kubegoodiesv1.AddToScheme(cfg.Client().Resources().GetScheme())
+			if err != nil {
+				t.Fatal(err)
+			}
+			return ctx
+		}).
+		Setup(func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+			propagation := kubegoodiesv1.ConfigMapPropagation{
+				//TypeMeta: metav1.TypeMeta{
+				//	// TODO: are these needed?
+				//	//Kind:       "",
+				//	//APIVersion: "",
+				//},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",    // TODO: randomize name
+					Namespace: "default", // TODO: randomize namespace
+				},
+				Spec: kubegoodiesv1.ConfigMapPropagationSpec{
+					Source: kubegoodiesv1.PropagationSource{
+						Namespace: "default",
+						Names:     []string{"src-by-name-1"},
+					},
+					Target: kubegoodiesv1.PropagationTarget{
+						Namespaces: []string{"ns1"},
+					},
+				},
+			}
+			if err := cfg.Client().Resources().Create(ctx, &propagation); err != nil {
+				t.Fatalf("failed to create ConfigMapPropagation: %v", err)
+			}
 
-	err = kubegoodiesv1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
+			return ctx
+		}).
+		Assess("propagation ready", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+			propagation := kubegoodiesv1.ConfigMapPropagation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",    // TODO: randomize name
+					Namespace: "default", // TODO: randomize namespace
+				},
+			}
 
-	//+kubebuilder:scaffold:scheme
+			// TODO: maybe override the default timeout of 5 mins with something shorter
+			err := wait.For(conditions.New(cfg.Client().Resources()).ResourceMatch(&propagation, func(obj k8s.Object) bool {
+				prop := obj.(*kubegoodiesv1.ConfigMapPropagation)
+				for _, cond := range prop.Status.Conditions {
+					if cond.Type == kubegoodiesv1.ConfigMapPropagationConditionTypeReady {
+						return cond.Status == metav1.ConditionTrue
+					}
+				}
+				return false
+			}))
+			if err != nil {
+				t.Errorf("propagation is not ready: %v", err)
+			}
 
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
-	Expect(err).NotTo(HaveOccurred())
-	Expect(k8sClient).NotTo(BeNil())
+			return ctx
+		}).Feature()
 
-}, 60)
-
-var _ = AfterSuite(func() {
-	By("tearing down the test environment")
-	err := testEnv.Stop()
-	Expect(err).NotTo(HaveOccurred())
-})
+	e.Test(t, feat)
+}

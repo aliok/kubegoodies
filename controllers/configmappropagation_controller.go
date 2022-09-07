@@ -18,6 +18,8 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+
 	"github.com/aliok/kubegoodies/pkg/configmappropagation"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -26,8 +28,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	corev1 "k8s.io/api/core/v1"
+	meta "k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	kubegoodiesv1 "github.com/aliok/kubegoodies/api/v1"
+
+	"github.com/hashicorp/go-multierror"
 )
 
 // ConfigMapPropagationReconciler reconciles a ConfigMapPropagation object
@@ -97,13 +103,65 @@ func (r *ConfigMapPropagationReconciler) Reconcile(ctx context.Context, req ctrl
 	// TODO: do we need a sanity check for the case where there is a target configmap which is targeted by multiple source configmaps?
 
 	logger.Info("executionReqs", "executionReqs", executionReqs)
+	meta.SetStatusCondition(&pr.Status.Conditions, metav1.Condition{
+		Type:    kubegoodiesv1.ConfigMapPropagationConditionTypeCollectedExecutionRequests,
+		Status:  metav1.ConditionTrue,
+		Reason:  "CollectedExecutionRequests",
+		Message: fmt.Sprintf("Collected %d execution requests for ConfigMapPropagation %s/%s", len(executionReqs), pr.Namespace, pr.Name),
+	})
+
+	// recreate the status array so that we create it from scratch
+	// TODO: shall we create the items in advance with status=Unknown?
+	var itemStatuses []kubegoodiesv1.PropagationStatus
+
+	var errs error
 
 	for _, executionReq := range executionReqs {
+		// TODO: set status condition for each execution request
 		if err := configmappropagation.Execute(ctx, r.Client, &executionReq); err != nil {
 			// TODO: do not return here, but continue with the rest of the requests
-			logger.Error(err, "unable to execute configmap propagation")
-			return ctrl.Result{}, err
+			logger.Error(err, "unable to execute configmap propagation request: %v", executionReq)
+			errs = multierror.Append(errs, fmt.Errorf("error executing request %v: %v", executionReq, err))
+
+			itemStatuses = append(itemStatuses, kubegoodiesv1.PropagationStatus{
+				SourceNamespace: executionReq.SourceNamespace,
+				SourceName:      executionReq.SourceName,
+				TargetNamespace: executionReq.TargetNamespace,
+				TargetName:      executionReq.TargetName,
+				Status:          metav1.ConditionFalse,
+				Reason:          "PropagationFailed",
+				Message:         fmt.Sprintf("error executing request %v", err),
+			})
+		} else {
+			itemStatuses = append(itemStatuses, kubegoodiesv1.PropagationStatus{
+				SourceNamespace: executionReq.SourceNamespace,
+				SourceName:      executionReq.SourceName,
+				TargetNamespace: executionReq.TargetNamespace,
+				TargetName:      executionReq.TargetName,
+				Status:          metav1.ConditionTrue,
+				Reason:          "PropagationSucceeded",
+				Message:         fmt.Sprintf("Propagated"),
+			})
 		}
+	}
+
+	pr.Status.PropagationStatus = itemStatuses
+
+	if errs != nil {
+		// TODO, update status before returning?
+		return ctrl.Result{}, errs
+	}
+
+	meta.SetStatusCondition(&pr.Status.Conditions, metav1.Condition{
+		Type:    kubegoodiesv1.ConfigMapPropagationConditionTypeReady,
+		Status:  metav1.ConditionTrue,
+		Reason:  "Ready",
+		Message: fmt.Sprintf("ConfigMapPropagation %s/%s is ready", pr.Namespace, pr.Name),
+	})
+
+	if err := r.Status().Update(ctx, &pr); err != nil {
+		logger.Error(err, "unable to update ConfigMapPropagation status")
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil

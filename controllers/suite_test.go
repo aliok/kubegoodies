@@ -79,8 +79,7 @@ func TestHello_WithSetup(t *testing.T) {
 				//	//APIVersion: "",
 				//},
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test",    // TODO: randomize name
-					Namespace: "default", // TODO: randomize namespace
+					Name: "test", // TODO: randomize name
 				},
 				Spec: kubegoodiesv1.ConfigMapPropagationSpec{
 					Source: kubegoodiesv1.PropagationSource{
@@ -101,8 +100,7 @@ func TestHello_WithSetup(t *testing.T) {
 		Assess("propagation ready", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
 			propagation := kubegoodiesv1.ConfigMapPropagation{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test",    // TODO: randomize name
-					Namespace: "default", // TODO: randomize namespace
+					Name: "test", // TODO: randomize name
 				},
 			}
 

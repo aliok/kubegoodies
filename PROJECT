@@ -6,7 +6,6 @@ repo: github.com/aliok/kubegoodies
 resources:
 - api:
     crdVersion: v1
-    namespaced: true
   controller: true
   domain: aliok.github.com
   group: kubegoodies

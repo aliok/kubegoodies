@@ -119,6 +119,7 @@ const (
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:scope=Cluster
 
 // ConfigMapPropagation is the Schema for the configmappropagations API
 type ConfigMapPropagation struct {

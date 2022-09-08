@@ -120,7 +120,7 @@ func (r *ConfigMapPropagationReconciler) Reconcile(ctx context.Context, req ctrl
 		// TODO: set status condition for each execution request
 		if err := configmappropagation.Execute(ctx, r.Client, &executionReq); err != nil {
 			// TODO: do not return here, but continue with the rest of the requests
-			logger.Error(err, "unable to execute configmap propagation request: %v", executionReq)
+			logger.Error(err, "unable to execute configmap propagation request", "request", executionReq)
 			errs = multierror.Append(errs, fmt.Errorf("error executing request %v: %v", executionReq, err))
 
 			itemStatuses = append(itemStatuses, kubegoodiesv1.PropagationStatus{
